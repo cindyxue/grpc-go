@@ -388,8 +388,10 @@ func TestEnd2End(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			// Start a server using ServerOptions in another goroutine.
 			serverOptions := &ServerOptions{
-				Certificates:   test.serverCert,
-				GetCertificate: test.serverGetCert,
+				ServerPeerCertificateOptions: ServerPeerCertificateOptions{
+					Certificates:         test.serverCert,
+					GetCertificate: test.serverGetCert,
+				},
 				RootCertificateOptions: RootCertificateOptions{
 					RootCACerts: test.serverRoot,
 					GetRootCAs:  test.serverGetRoot,
@@ -412,9 +414,11 @@ func TestEnd2End(t *testing.T) {
 			pb.RegisterGreeterServer(s, &serverImpl{})
 			go s.Serve(lis)
 			clientOptions := &ClientOptions{
-				Certificates:         test.clientCert,
-				GetClientCertificate: test.clientGetCert,
-				VerifyPeer:           test.clientVerifyFunc,
+				ClientPeerCertificateOptions: ClientPeerCertificateOptions{
+					Certificates:         test.clientCert,
+					GetClientCertificate: test.clientGetCert,
+				},
+				VerifyPeer: test.clientVerifyFunc,
 				RootCertificateOptions: RootCertificateOptions{
 					RootCACerts: test.clientRoot,
 					GetRootCAs:  test.clientGetRoot,
