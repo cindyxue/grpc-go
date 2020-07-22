@@ -429,6 +429,10 @@ func buildVerifyFunc(c *advancedTLSCreds,
 	}
 }
 
+const (
+	defaultTestTimeout = 1 * time.Second
+)
+
 // NewClientCreds uses ClientOptions to construct a TransportCredentials based
 // on TLS.
 func NewClientCreds(o *ClientOptions) (credentials.TransportCredentials, error) {
@@ -436,6 +440,20 @@ func NewClientCreds(o *ClientOptions) (credentials.TransportCredentials, error) 
 	if err != nil {
 		return nil, err
 	}
+	if o.RootCertificateOptions.Reader != nil {
+		// quit := make(chan bool)
+		// Initialize the Distributor
+		// d := certprovider.NewDistributor()
+		// ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+		// defer cancel()
+		// go func() {
+		// 	for {
+		// 		trustCert, _ := o.RootCertificateOptions.Reader.ReadTrustCerts()
+
+		// 	}
+		// }
+	}
+
 	tc := &advancedTLSCreds{
 		config:     conf,
 		isClient:   true,
