@@ -21,10 +21,8 @@ package advancedtls
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"time"
 )
 
 // PeerCredFileReader is an interface that supports reading
@@ -44,7 +42,6 @@ type TrustCredFileReader interface {
 type PemPeerCredFileReader struct {
 	certFilePath string
 	keyFilePath  string
-	interval     time.Duration
 }
 
 // PemPeerCredFileReaderOption contains all information needed to be filled out
@@ -52,7 +49,6 @@ type PemPeerCredFileReader struct {
 type PemPeerCredFileReaderOption struct {
 	CertFilePath string
 	KeyFilePath  string
-	Interval     time.Duration
 }
 
 // NewPemPeerCredFileReader uses PemPeerCredFileReaderOption
@@ -66,15 +62,9 @@ func NewPemPeerCredFileReader(o PemPeerCredFileReaderOption) (*PemPeerCredFileRe
 		return nil, fmt.Errorf(
 			"users need to specify key file path in PemPeerCredFileReaderOption")
 	}
-	// If interval is not set by users explicitly, set it to 1 hour by default.
-	interval := o.Interval
-	if interval == 0*time.Nanosecond {
-		interval = 1 * time.Hour
-	}
 	r := &PemPeerCredFileReader{
 		certFilePath: o.CertFilePath,
 		keyFilePath:  o.KeyFilePath,
-		interval:     interval,
 	}
 	return r, nil
 }
@@ -93,14 +83,12 @@ func (r PemPeerCredFileReader) ReadKeyAndCerts() (*tls.Certificate, error) {
 // PemTrustCredFileReader supports reading trust credential files of PEM format.
 type PemTrustCredFileReader struct {
 	trustCertPath string
-	interval      time.Duration
 }
 
 // PemTrustCredFileReaderOption contains all information needed to be filled out
 // by users in order to use NewPemTrustCredFileReader.
 type PemTrustCredFileReaderOption struct {
 	TrustCertPath string
-	Interval      time.Duration
 }
 
 // NewPemTrustCredFileReader uses PemTrustCredFileReaderOption
@@ -110,14 +98,8 @@ func NewPemTrustCredFileReader(o PemTrustCredFileReaderOption) (*PemTrustCredFil
 		return nil, fmt.Errorf(
 			"users need to specify key file path in PemTrustCredFileReaderOption")
 	}
-	// If interval is not set by users explicitly, set it to 1 hour by default.
-	interval := o.Interval
-	if interval == 0*time.Nanosecond {
-		interval = 1 * time.Hour
-	}
 	r := &PemTrustCredFileReader{
 		trustCertPath: o.TrustCertPath,
-		interval:      interval,
 	}
 	return r, nil
 }
@@ -129,15 +111,7 @@ func (r PemTrustCredFileReader) ReadTrustCerts() (*x509.CertPool, error) {
 	if err != nil {
 		return nil, err
 	}
-	trustBlock, _ := pem.Decode(trustData)
-	if trustBlock == nil {
-		return nil, err
-	}
-	trustCert, err := x509.ParseCertificate(trustBlock.Bytes)
-	if err != nil {
-		return nil, err
-	}
 	trustPool := x509.NewCertPool()
-	trustPool.AddCert(trustCert)
+	trustPool.AppendCertsFromPEM(trustData)
 	return trustPool, nil
 }
