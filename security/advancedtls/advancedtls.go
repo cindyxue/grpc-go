@@ -183,6 +183,9 @@ type ClientOptions struct {
 	RootCertificateOptions
 	// ClientPeerCertificateOptions is used for peer certificate setting.
 	ClientPeerCertificateOptions
+	// Interval specifies the duration to sleep for in go routine for on-file-change
+	// credential reloading
+	Interval time.Duration
 	// VType is the verification type on the client side.
 	VType VerificationType
 }
@@ -202,6 +205,9 @@ type ServerOptions struct {
 	ServerPeerCertificateOptions
 	// If the server want the client to send certificates.
 	RequireClientCert bool
+	// Interval specifies the duration to sleep for in go routine for on-file-change
+	// credential reloading
+	Interval time.Duration
 	// VType is the verification type on the server side.
 	VType VerificationType
 }
@@ -440,7 +446,13 @@ func NewClientCreds(o *ClientOptions) (credentials.TransportCredentials, error) 
 	if err != nil {
 		return nil, err
 	}
-	if o.RootCertificateOptions.Reader != nil {
+	if o.RootCertificateOptions.Reader != nil &&
+		o.ClientPeerCertificateOptions.Reader != nil {
+		// If interval is not set by users explicitly, set it to 1 hour by default.
+		interval := o.Interval
+		if interval == 0*time.Nanosecond {
+			interval = 1 * time.Hour
+		}
 		// quit := make(chan bool)
 		// Initialize the Distributor
 		// d := certprovider.NewDistributor()
