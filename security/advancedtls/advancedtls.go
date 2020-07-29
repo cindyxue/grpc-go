@@ -78,8 +78,8 @@ type GetRootCAsResults struct {
 	TrustCerts *x509.CertPool
 }
 
-// RootCertificateOptions contains a field and a function for obtaining root
-// trust certificates.
+// RootCertificateOptions contains a field, a function and a reader for
+// obtaining root trust certificates.
 // It is used by both ClientOptions and ServerOptions.
 // If users want to use default verification, but did not provide a valid
 // RootCertificateOptions, we use the system default trust certificates.
@@ -93,6 +93,59 @@ type RootCertificateOptions struct {
 	// connection is established.
 	// This is known as root CA certificate reloading.
 	GetRootCAs func(params *GetRootCAsParams) (*GetRootCAsResults, error)
+	// Reader is the trust credential file reader which reads trust certificate
+	// from file path defined by users.
+	Reader TrustCredFileReader
+}
+
+// ClientPeerCertificateOptions contains a field, a function and a reader for
+// obtaining peer certificates on the client side.
+// It is used by ClientOptions.
+// General rules for certificate setting on client side:
+// Certificates or GetClientCertificate indicates the certificates sent from
+// the client to the server to prove client's identities. The rules for setting
+// these two fields are:
+// If requiring mutual authentication on server side:
+//     Either Certificates or GetClientCertificate must be set; the other will
+//     be ignored.
+// Otherwise:
+//     Nothing needed(the two fields will be ignored).
+type ClientPeerCertificateOptions struct {
+	// If field Certificates is set, field GetClientCertificate will be ignored.
+	// The client will use Certificates every time when asked for a certificate,
+	// without performing certificate reloading.
+	Certificates []tls.Certificate
+	// If GetClientCertificate is set and Certificates is nil, the client will
+	// invoke this function every time asked to present certificates to the
+	// server when a new connection is established. This is known as peer
+	// certificate reloading.
+	GetClientCertificate func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	// Reader is the peer credential file reader which reads peer certificate
+	// from file paths defined by users.
+	Reader PeerCredFileReader
+}
+
+// ServerPeerCertificateOptions contains a field, a function and a reader for
+// obtaining peer certificates on the server side.
+// It is used by ServerOptions.
+// General rules for certificate setting on server side:
+// Certificates or GetClientCertificate indicates the certificates sent from
+// the server to the client to prove server's identities. The rules for setting
+// these two fields are:
+// Either Certificates or GetCertificate must be set; the other will be ignored.
+type ServerPeerCertificateOptions struct {
+	// If field Certificates is set, field GetClientCertificate will be ignored.
+	// The server will use Certificates every time when asked for a certificate,
+	// without performing certificate reloading.
+	Certificates []tls.Certificate
+	// If GetClientCertificate is set and Certificates is nil, the server will
+	// invoke this function every time asked to present certificates to the
+	// client when a new connection is established. This is known as peer
+	// certificate reloading.
+	GetCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	// Reader is the peer credential file reader which reads peer certificate
+	// from file paths defined by users.
+	Reader PeerCredFileReader
 }
 
 // VerificationType is the enum type that represents different levels of
@@ -116,25 +169,7 @@ const (
 
 // ClientOptions contains all the fields and functions needed to be filled by
 // the client.
-// General rules for certificate setting on client side:
-// Certificates or GetClientCertificate indicates the certificates sent from
-// the client to the server to prove client's identities. The rules for setting
-// these two fields are:
-// If requiring mutual authentication on server side:
-//     Either Certificates or GetClientCertificate must be set; the other will
-//     be ignored.
-// Otherwise:
-//     Nothing needed(the two fields will be ignored).
 type ClientOptions struct {
-	// If field Certificates is set, field GetClientCertificate will be ignored.
-	// The client will use Certificates every time when asked for a certificate,
-	// without performing certificate reloading.
-	Certificates []tls.Certificate
-	// If GetClientCertificate is set and Certificates is nil, the client will
-	// invoke this function every time asked to present certificates to the
-	// server when a new connection is established. This is known as peer
-	// certificate reloading.
-	GetClientCertificate func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	// VerifyPeer is a custom verification check after certificate signature
 	// check.
 	// If this is set, we will perform this customized check after doing the
@@ -146,27 +181,18 @@ type ClientOptions struct {
 	ServerNameOverride string
 	// RootCertificateOptions is REQUIRED to be correctly set on client side.
 	RootCertificateOptions
+	// ClientPeerCertificateOptions is used for peer certificate setting.
+	ClientPeerCertificateOptions
+	// Interval specifies the duration to sleep for in go routine for on-file-change
+	// credential reloading
+	Interval time.Duration
 	// VType is the verification type on the client side.
 	VType VerificationType
 }
 
 // ServerOptions contains all the fields and functions needed to be filled by
 // the client.
-// General rules for certificate setting on server side:
-// Certificates or GetClientCertificate indicates the certificates sent from
-// the server to the client to prove server's identities. The rules for setting
-// these two fields are:
-// Either Certificates or GetCertificate must be set; the other will be ignored.
 type ServerOptions struct {
-	// If field Certificates is set, field GetClientCertificate will be ignored.
-	// The server will use Certificates every time when asked for a certificate,
-	// without performing certificate reloading.
-	Certificates []tls.Certificate
-	// If GetClientCertificate is set and Certificates is nil, the server will
-	// invoke this function every time asked to present certificates to the
-	// client when a new connection is established. This is known as peer
-	// certificate reloading.
-	GetCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 	// VerifyPeer is a custom verification check after certificate signature
 	// check.
 	// If this is set, we will perform this customized check after doing the
@@ -175,8 +201,13 @@ type ServerOptions struct {
 	// RootCertificateOptions is only required when mutual TLS is
 	// enabled(RequireClientCert is true).
 	RootCertificateOptions
+	// ServerPeerCertificateOptions is used for peer certificate setting.
+	ServerPeerCertificateOptions
 	// If the server want the client to send certificates.
 	RequireClientCert bool
+	// Interval specifies the duration to sleep for in go routine for on-file-change
+	// credential reloading
+	Interval time.Duration
 	// VType is the verification type on the server side.
 	VType VerificationType
 }
@@ -404,6 +435,10 @@ func buildVerifyFunc(c *advancedTLSCreds,
 	}
 }
 
+const (
+	defaultTestTimeout = 1 * time.Second
+)
+
 // NewClientCreds uses ClientOptions to construct a TransportCredentials based
 // on TLS.
 func NewClientCreds(o *ClientOptions) (credentials.TransportCredentials, error) {
@@ -411,6 +446,26 @@ func NewClientCreds(o *ClientOptions) (credentials.TransportCredentials, error) 
 	if err != nil {
 		return nil, err
 	}
+	if o.RootCertificateOptions.Reader != nil &&
+		o.ClientPeerCertificateOptions.Reader != nil {
+		// If interval is not set by users explicitly, set it to 1 hour by default.
+		interval := o.Interval
+		if interval == 0*time.Nanosecond {
+			interval = 1 * time.Hour
+		}
+		// quit := make(chan bool)
+		// Initialize the Distributor
+		// d := certprovider.NewDistributor()
+		// ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+		// defer cancel()
+		// go func() {
+		// 	for {
+		// 		trustCert, _ := o.RootCertificateOptions.Reader.ReadTrustCerts()
+
+		// 	}
+		// }
+	}
+
 	tc := &advancedTLSCreds{
 		config:     conf,
 		isClient:   true,

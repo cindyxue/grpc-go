@@ -403,8 +403,10 @@ func TestClientServerHandshake(t *testing.T) {
 			}
 			// Start a server using ServerOptions in another goroutine.
 			serverOptions := &ServerOptions{
-				Certificates:   test.serverCert,
-				GetCertificate: test.serverGetCert,
+				ServerPeerCertificateOptions: ServerPeerCertificateOptions{
+					Certificates:   test.serverCert,
+					GetCertificate: test.serverGetCert,
+				},
 				RootCertificateOptions: RootCertificateOptions{
 					RootCACerts: test.serverRoot,
 					GetRootCAs:  test.serverGetRoot,
@@ -442,9 +444,11 @@ func TestClientServerHandshake(t *testing.T) {
 			}
 			defer conn.Close()
 			clientOptions := &ClientOptions{
-				Certificates:         test.clientCert,
-				GetClientCertificate: test.clientGetCert,
-				VerifyPeer:           test.clientVerifyFunc,
+				ClientPeerCertificateOptions: ClientPeerCertificateOptions{
+					Certificates:         test.clientCert,
+					GetClientCertificate: test.clientGetCert,
+				},
+				VerifyPeer: test.clientVerifyFunc,
 				RootCertificateOptions: RootCertificateOptions{
 					RootCACerts: test.clientRoot,
 					GetRootCAs:  test.clientGetRoot,
@@ -650,7 +654,9 @@ func TestOptionsConfig(t *testing.T) {
 		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			serverOptions := &ServerOptions{
-				Certificates:      test.serverCert,
+				ServerPeerCertificateOptions: ServerPeerCertificateOptions{
+					Certificates: test.serverCert,
+				},
 				RequireClientCert: test.serverMutualTLS,
 				VType:             test.serverVType,
 			}
