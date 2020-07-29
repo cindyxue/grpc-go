@@ -55,12 +55,10 @@ type PemPeerCredFileReaderOption struct {
 // to contruct a PemPeerCredFileReader.
 func NewPemPeerCredFileReader(o PemPeerCredFileReaderOption) (*PemPeerCredFileReader, error) {
 	if o.CertFilePath == "" {
-		return nil, fmt.Errorf(
-			"users need to specify certificate file path in PemPeerCredFileReaderOption")
+		return nil, fmt.Errorf("users need to specify certificate file path in PemPeerCredFileReaderOption")
 	}
 	if o.KeyFilePath == "" {
-		return nil, fmt.Errorf(
-			"users need to specify key file path in PemPeerCredFileReaderOption")
+		return nil, fmt.Errorf("users need to specify key file path in PemPeerCredFileReaderOption")
 	}
 	r := &PemPeerCredFileReader{
 		certFilePath: o.CertFilePath,
@@ -95,8 +93,7 @@ type PemTrustCredFileReaderOption struct {
 // to contruct a PemTrustCredFileReader.
 func NewPemTrustCredFileReader(o PemTrustCredFileReaderOption) (*PemTrustCredFileReader, error) {
 	if o.TrustCertPath == "" {
-		return nil, fmt.Errorf(
-			"users need to specify key file path in PemTrustCredFileReaderOption")
+		return nil, fmt.Errorf("users need to specify key file path in PemTrustCredFileReaderOption")
 	}
 	r := &PemTrustCredFileReader{
 		trustCertPath: o.TrustCertPath,

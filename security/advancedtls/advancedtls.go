@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc/credentials"
+	// "google.golang.org/grpc/credentials/tls/certprovider"
 )
 
 // VerificationFuncParams contains parameters available to users when
@@ -461,7 +462,6 @@ func NewClientCreds(o *ClientOptions) (credentials.TransportCredentials, error) 
 		// go func() {
 		// 	for {
 		// 		trustCert, _ := o.RootCertificateOptions.Reader.ReadTrustCerts()
-
 		// 	}
 		// }
 	}
