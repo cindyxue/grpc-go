@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc/credentials"
-	// "google.golang.org/grpc/internal/credentials/syscallconn"
+	credinternal "google.golang.org/grpc/internal/credentials"
 )
 
 // VerificationFuncParams contains parameters available to users when
@@ -503,4 +503,11 @@ func cloneTLSConfig(cfg *tls.Config) *tls.Config {
 		return &tls.Config{}
 	}
 	return cfg.Clone()
+}
+
+func callSPIFFEIDFromState() {
+	state := tls.ConnectionState{PeerCertificates: []*x509.Certificate{}}
+	id := credinternal.SPIFFEIDFromState(state)
+	if id == nil {
+	}
 }
