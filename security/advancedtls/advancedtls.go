@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/tls/certprovider"
 )
 
 // VerificationFuncParams contains parameters available to users when
@@ -179,6 +180,14 @@ type ServerOptions struct {
 	RequireClientCert bool
 	// VType is the verification type on the server side.
 	VType VerificationType
+	// IdentityProvider keeps identity credential implementations up to
+	// date with secrets that they rely on to secure communications on the
+	// underlying channel.
+	IdentityProvider certprovider.Provider
+	// RootProvider keeps root credential implementations up to
+	// date with secrets that they rely on to secure communications on the
+	// underlying channel.
+	RootProvider certprovider.Provider
 }
 
 func (o *ClientOptions) config() (*tls.Config, error) {
@@ -443,6 +452,25 @@ func NewServerCreds(o *ServerOptions) (credentials.TransportCredentials, error) 
 		vType:      o.VType,
 	}
 	tc.config.NextProtos = appendH2ToNextProtos(tc.config.NextProtos)
+	ctx := context.Background()
+	if o.IdentityProvider != nil {
+		tc.config.GetCertificate = func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			km, err := o.IdentityProvider.KeyMaterial(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &km.Certs[0], nil
+		}
+	}
+	if o.RootProvider != nil {
+		tc.getRootCAs = func(params *GetRootCAsParams) (*GetRootCAsResults, error) {
+			km, err := o.RootProvider.KeyMaterial(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &GetRootCAsResults{TrustCerts: km.Roots}, nil
+		}
+	}
 	return tc, nil
 }
 
